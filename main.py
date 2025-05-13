@@ -31,7 +31,13 @@ class FISPQApp:
 
     def process_pdfs(self):
         """Processa PDFs do diretório especificado e extrai dados."""
-        input_dir = r"C:/Users/mauri/OneDrive/Área de Trabalho/extraindoDados"
+        input_dir = r"C:/Users/mauri/OneDrive/Área de Trabalho/extraindoDados/FISPQ"
+        
+        # Verificar se o diretório existe
+        if not os.path.exists(input_dir):
+            print(f"❌ Erro: O diretório {input_dir} não existe.")
+            return
+
         pdfs = [f for f in os.listdir(input_dir) if f.lower().endswith('.pdf')]
 
         if not pdfs:
@@ -93,7 +99,6 @@ class FISPQApp:
 
         except sqlite3.Error as e:
             print(f"❌ Erro ao excluir dados: {e}")
-
 
 if __name__ == "__main__":
     app = FISPQApp()
