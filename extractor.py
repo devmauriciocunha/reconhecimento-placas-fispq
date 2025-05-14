@@ -29,7 +29,6 @@ class FISPQExtractor:
                     risco_subsidiario TEXT,
                     primeiros_socorros TEXT,
                     medidas_incendio TEXT,
-                    medidas_fuga TEXT,
                     arquivo TEXT
                 );
             """)
@@ -79,6 +78,9 @@ class FISPQExtractor:
     def _save_to_db(self, data):
         """Salva ou atualiza os dados no banco de dados"""
         try:
+            # Remover o campo medidas_fuga antes de tentar salvar os dados no banco
+            data.pop("medidas_fuga", None)
+
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM fispq WHERE arquivo = ?", (data["arquivo"],))
@@ -94,7 +96,7 @@ class FISPQExtractor:
                             risco_subsidiario = ?, 
                             primeiros_socorros = ?, 
                             medidas_incendio = ?, 
-                            medidas_fuga = ? 
+                            arquivo = ?
                         WHERE arquivo = ?
                     """, (
                         data["substancia"],
@@ -104,7 +106,7 @@ class FISPQExtractor:
                         data["risco_subsidiario"],
                         data["primeiros_socorros"],
                         data["medidas_incendio"],
-                        data["medidas_fuga"],
+                        data["arquivo"],
                         data["arquivo"]
                     ))
                     print(f"✅ Dados atualizados no banco: {data['arquivo']}")
@@ -113,8 +115,8 @@ class FISPQExtractor:
                         INSERT INTO fispq (
                             substancia, numero_onu, numero_risco, classe,
                             risco_subsidiario, primeiros_socorros,
-                            medidas_incendio, medidas_fuga, arquivo
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            medidas_incendio, arquivo
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         data["substancia"],
                         data["numero_onu"],
@@ -123,11 +125,10 @@ class FISPQExtractor:
                         data["risco_subsidiario"],
                         data["primeiros_socorros"],
                         data["medidas_incendio"],
-                        data["medidas_fuga"],
                         data["arquivo"]
                     ))
                     print(f"✅ Dados inseridos no banco: {data['arquivo']}")
-                
+
                 conn.commit()
         except sqlite3.Error as e:
             print(f"❌ Erro ao inserir ou atualizar dados no banco: {e}")
@@ -179,82 +180,3 @@ class FISPQExtractor:
                         print(f"✅ Banco de dados atualizado a partir do JSON manual: {json_file}")
         except Exception as e:
             print(f"❌ Erro ao importar dados do JSON manual para o banco: {e}")
-
-class FISPQApp:
-    def __init__(self):
-        self.extractor = FISPQExtractor()
-
-    def display_menu(self):
-        """Exibe o menu e processa a escolha do usuário"""
-        while True:
-            print("\n----- MENU -----")
-            print("1. Processar PDFs")
-            print("2. Exibir dados no banco")
-            print("3. Excluir dado (por ID)")
-            print("4. Sair")
-            
-            choice = input("Escolha uma opção (1-4): ")
-            
-            if choice == "1":
-                self.process_pdfs()
-            elif choice == "2":
-                self.show_data()
-            elif choice == "3":
-                self.delete_data()
-            elif choice == "4":
-                print("Saindo...")
-                break
-            else:
-                print("Opção inválida. Tente novamente.")
-
-    def process_pdfs(self):
-        """Processa PDFs do diretório especificado e extrai dados"""
-        self.extractor.process_pdf(self.extractor.pdf_dir)
-
-    def show_data(self):
-        """Exibe os dados no banco de dados"""
-        try:
-            with sqlite3.connect(self.extractor.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM fispq")
-                rows = cursor.fetchall()
-
-                if rows:
-                    print("\nDados no banco de dados:")
-                    for row in rows:
-                        print(row)  # Exibe todos os dados no banco, incluindo o ID
-                else:
-                    print("Nenhum dado encontrado no banco.")
-        except sqlite3.Error as e:
-            print(f"❌ Erro ao exibir os dados: {e}")
-
-    def delete_data(self):
-        """Exclui dados do banco de dados com confirmação por ID"""
-        try:
-            self.show_data()  # Exibe os dados antes de excluir
-            id_to_delete = input("\nDigite o ID do dado que deseja excluir: ")
-
-            # Confirmação antes de excluir
-            confirm = input(f"Tem certeza que deseja excluir o dado com ID '{id_to_delete}'? (s/n): ").lower()
-            if confirm != 's':
-                print("❌ A exclusão foi cancelada.")
-                return
-
-            with sqlite3.connect(self.extractor.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM fispq WHERE id = ?", (id_to_delete,))
-                existing_data = cursor.fetchone()
-
-                if existing_data:
-                    cursor.execute("DELETE FROM fispq WHERE id = ?", (id_to_delete,))
-                    conn.commit()
-                    print(f"✅ Dados excluídos com sucesso! ID: {id_to_delete}")
-                else:
-                    print(f"❌ Dado com ID '{id_to_delete}' não encontrado no banco.")
-
-        except sqlite3.Error as e:
-            print(f"❌ Erro ao excluir dados: {e}")
-
-if __name__ == "__main__":
-    app = FISPQApp()
-    app.display_menu()
